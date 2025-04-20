@@ -1,94 +1,77 @@
 <template>
-    
-    <div v-if="isLoading">
-        Loanding...
-    </div>
+    <span v-if="isLoading">Loading...</span>
 
-    <button v-else-if="likeCount === 0" @click="likePost">
-        Like this post
-    </button>
+    <button v-else-if="likeCount === 0" @click="likepost">Like this post</button>
 
-    <button v-else @click="likePost">
-        Likes
-        <span>{{ likeCount }}</span>
-    </button>
-
-    {{ likeClicks }}
+    <button v-else @click="likepost">Likes {{ likeCount }}</button>
 
 </template>
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
-import confetti from "canvas-confetti";
-import debounce from "lodash.debounce";
 
-interface Props {
-    postId: string;
-}
+import confetti from 'canvas-confetti';
+import { actions } from 'astro:actions';
+import debounce from 'lodash.debounce';
 
-const props = defineProps<Props>()
+    interface Props {
+        postId: string,
+    }
 
-const likeCount = ref(0)
-const likeClicks = ref(0)
-const isLoading = ref(true)
+    const props = defineProps<Props>()
 
+    const likeCount = ref(0)
+    const likeClicks = ref(0)
+    const isLoading = ref(true)
 
-watch( likeCount,debounce( () => {
-    
+    watch(likeCount, debounce((newValue, oldValue) => {
+        console.log(`Enviando ${likeClicks.value}`)
+        actions.updateLikeCount({
+            increment: likeClicks.value,
+            postId: props.postId,
+        });
 
-    fetch(`/api/post/likes/${ props.postId }`, {
-        method: "PUT",
-        headers: {
-                "Content-Type": "application/json"
-        },
-        body: JSON.stringify({likes: likeClicks.value}) 
-    })
-
-    likeClicks.value = 0
-}, 500  ))
+        likeClicks.value = 0;
+    }, 500)
+    )
 
 
+    const likepost = async () => {
+        console.log("like +1")
 
 
+        likeCount.value += 1;
+        likeClicks.value += 1 
 
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: {
+                x: Math.random(),
+                y: Math.random() - 0.2,
+            }
+        })
+    };
 
-const likePost = () => {
-    likeCount.value++
-    likeClicks.value++
+    const getCurrentLikes = async() => {
 
-
-    confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: {
-            x: Math.random(),
-            y: Math.random() - 0.2
+        const {data, error} = await actions.getLikes(props.postId);
+        if (error) {
+            return alert("No se pudo leer el postID")
         }
-    })
 
-}
+        likeCount.value = data.likes
 
+        isLoading.value = false
 
+    };
 
-
-
-const getCurrentLikes = async() => {
-    const resp = await fetch(`/api/post/likes/${ props.postId }`)
-    if (!resp.ok) return;
-
-    const data = await resp.json();
-    console.log("DATA", data)
-
-    likeCount.value = data.likes;
-    isLoading.value = false;
-}
-
-getCurrentLikes();
-
+    getCurrentLikes();
 </script>
 
-
 <style scoped>
+
+
 button {
     background-color: #5e51bc;
     color: white;
@@ -102,4 +85,5 @@ button {
 button:hover {
     background-color: #4a3f9a;
 }
+
 </style>

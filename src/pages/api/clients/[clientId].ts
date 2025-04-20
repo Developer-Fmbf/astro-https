@@ -1,83 +1,121 @@
+import prisma from "@db";
 import type { APIRoute } from "astro";
-import { Clients, db, eq } from "astro:db";
-import type { SQL } from "drizzle-orm";
 
-export const prerender = false;
+export const prerender = false
+
+const findClientById = async (clientId: string) => {
+    try {
+        const client = prisma.client.findUnique({
+            where: {
+                id: clientId
+            }
+        })
+
+        return client
+    } catch (error) {
+        console.log(error)
+        return null;
+    }
+}
 
 export const GET: APIRoute = async ({ params, request }) => {
+    const { clientId = '' } = params
 
-    const clientId = params.clientId ?? "";
+    try {
+        const client = await findClientById(clientId)
 
-    const clients = await db.select().from(Clients).where(eq(Clients.id, +clientId))
-    if (clients.length === 0) {
-        return new Response(JSON.stringify({ msg: `Client with id ${clientId} not found` }), {
-            status: 404,
+        if (!client) {
+            return new Response(`Client with id ${clientId} not found`, {
+                status: 404
+            })
+        }
+
+        const responseObject = JSON.stringify(client)
+
+
+
+        return new Response(responseObject, {
+            status: 200,
             headers: {
-                "Content-Type": "application/json",
-            },
-        });
+                'Content-Type': 'application/json',
+            }
+        })
+    } catch (error) {
+        return new Response("Bad request", {
+            status: 400,
+        })
     }
-    return new Response(JSON.stringify(clients.at(0)), {
-        status: 200,
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
 
-};
 
+
+}
 export const PATCH: APIRoute = async ({ params, request }) => {
-    const clientId = params.clientId ?? "";
+
+    const { clientId = '' } = params
+
+    const client = await findClientById(clientId);
+
+    if (!client) {
+        return new Response(`Client with id ${clientId} not found`)
+    }
+
 
     try {
 
-        const { id, ...body } = await request.json()
+        const { id, ...body } = await request.json();
 
-        const results = await db.update(Clients).set(body)
-            .where(eq(Clients.id, +clientId))
+        const updatedClient = await prisma.client.update({
+            where: {
+                id: clientId
+            },
+            data: body
+        });
 
-        const updatedClient = await db.select().from(Clients).where(eq(Clients.id, +clientId))
+        return new Response(JSON.stringify(updatedClient), {
+            status: 201,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
 
-        return new Response(JSON.stringify(updatedClient.at(0)),
-            {
-                status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
 
     } catch (error) {
-        console.log(error)
-
-        return new Response(JSON.stringify({ msg: "No body found" }), {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+        return new Response("Bad request", {
+            status: 400,
+        })
     }
 
-};
 
 
+}
 export const DELETE: APIRoute = async ({ params, request }) => {
-    const clientId = params.clientId ?? "";
 
-    const { rowsAffected } = await db.delete(Clients).where(eq(Clients.id, +clientId))
+    const { clientId = '' } = params
 
-    if (rowsAffected > 0) {
-        return new Response(JSON.stringify({ msg: "Delete" }), {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+    const client = await findClientById(clientId);
+
+    if (!client) {
+        return new Response(`Client with id ${clientId} not found`)
     }
 
-    return new Response(JSON.stringify({ msg: `Client with id ${clientId} not found` }), {
-        status: 404,
-        headers: {
-            "Content-Type": "application/json",
+
+    const deleteClient = await prisma.client.delete({
+        where: {
+            id: clientId
         },
     });
-}; 
+
+    return new Response(JSON.stringify({
+        msg: "deleted",
+        client: deleteClient,
+    }), {
+        status: 200,
+        headers: {
+            "Content-Type": "application/json"
+        }
+    })
+
+
+
+
+}

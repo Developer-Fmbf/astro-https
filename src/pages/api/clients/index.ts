@@ -1,52 +1,49 @@
 import type { APIRoute } from "astro";
-import { Clients, db } from "astro:db";
+import prisma from "@db"
+import { v4 as UUID } from "uuid"
 
-export const prerender = false;
+export const prerender = false
 
 export const GET: APIRoute = async ({ params, request }) => {
 
-    const users = await db.select().from(Clients)
+    const clients = await prisma.client.findMany()
 
-    return new Response(JSON.stringify(users), {
+
+
+    return new Response(JSON.stringify(clients), {
         status: 200,
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
-};
 
+        headers: {
+            "Content-Type": "application/json"
+        }
+    })
+}
 
 export const POST: APIRoute = async ({ params, request }) => {
+
     try {
+        const { id, ...body } = await request.json()
 
-        const { id, ...body } = await request.json();
+        const client = await prisma.client.create({
+            data: {
+                id: UUID(),
+                ...body
+            }
+        })
 
-        const { lastInsertRowid } = await db.insert(Clients).values(body);
+        return new Response(JSON.stringify(client), {
+            status: 201,
 
-        return new Response(JSON.stringify({
-            id: +lastInsertRowid!.toString(),
-            ...body,
-
-        }),
-            {
-                status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-    } catch (error) {
-        console.log(error)
-
-        return new Response(JSON.stringify({ msg: "No body found" }), {
-            status: 200,
             headers: {
-                "Content-Type": "application/json",
-            },
-        });
+                "Content-Type": "application/json"
+            }
+        })
+    } catch (error) {
+        return new Response("Bad request", {
+            status: 400,
+        })
     }
 
 
 
-
-};
+}
